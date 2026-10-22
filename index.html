@@ -47,19 +47,21 @@ input[type=text]:focus,input[type=text]:focus-visible,input[type=password]:focus
 /* stat filters */
 .filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:24px}
 @media (max-width:620px){.filters{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.f{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
-.f:hover{border-color:var(--muted)}
+.f{position:relative;background:var(--panel);border:0;border-radius:16px;padding:10px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0;transition:background-color .45s ease,box-shadow .45s ease}
+.f:hover{background:var(--panel2)}
 .f b{font:400 30px/1 var(--f-display);font-variant-numeric:tabular-nums}
 .f span{font:500 13px var(--f-ui);letter-spacing:.01em;color:var(--muted)}
 .f.must b{color:var(--must)} .f.rt b{color:var(--glow)}
-.f[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
-.f[aria-pressed="true"] span{color:#3a3732} .f[aria-pressed="true"] b{color:var(--bg)}
+.f[aria-pressed="true"]{background:#2a2724;box-shadow:inset 0 0 0 1px #5a544c}
+.f .ic{position:absolute;top:50%;right:16px;transform:translateY(-50%);width:16px;color:#fff;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.f .ic .stache{display:block;width:16px;height:auto}
+.f[aria-pressed="true"] .ic{opacity:1}
 .banner{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--glow);border-radius:4px;padding:12px 14px;font-size:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 #songs-view,#review-view{padding-inline:8px}
 @media (max-width:780px){#songs-view,#review-view{padding-inline:0}}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:16px;align-items:stretch}
 @media (max-width:780px){.grid{grid-template-columns:1fr}}
-nav{background:var(--panel);border:0;border-radius:16px;padding:0;overflow:hidden}
+nav{background:var(--panel);border:0;border-radius:16px;padding:14px 0 0;overflow:hidden}
 .tl{display:grid;grid-auto-rows:1fr;gap:2px}
 @media (max-width:780px){.tl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(6,1fr);grid-auto-flow:column;gap:2px 36px;background-image:linear-gradient(var(--line),var(--line));background-size:1px 100%;background-position:50% 0;background-repeat:no-repeat}}
 .trk{display:grid;grid-template-columns:minmax(0,1fr) auto 48px;gap:8px;align-items:center;padding:10px 0 10px 24px;border:0;background:none;border-radius:0;text-align:left;cursor:pointer;width:100%;transition:background-color .45s ease}
@@ -143,11 +145,11 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 .replybox{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .empty{text-align:center;padding:30px 16px;border:1px dashed var(--line);border-radius:4px}
 .group{display:flex;flex-direction:column;gap:10px}
-.group h3{font:400 24px/1 var(--f-display);margin:8px 0 0;cursor:pointer}
+.group h3{font:700 15px/1.25 var(--f-body);margin:8px 0 0;cursor:pointer}
 .group h3:hover{color:var(--glow)}
 .songrow{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:0;border-radius:16px;padding:16px 24px;cursor:pointer}
 .songrow:hover{border-color:var(--muted)}
-.songrow .title{font-size:24px}
+.songrow .title{font:700 15px/1.25 var(--f-body)}
 .danger{color:var(--must)}
 @media (max-width:780px){
   nav{padding:0;overflow:hidden}
@@ -161,11 +163,11 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
   nav .trk{grid-template-columns:minmax(0,1fr) auto 28px;gap:6px;padding:10px 0 10px 8px}
   nav .trk .ic{margin-left:-13px;width:calc(100% + 13px)}
   .trk .n{font-size:11px}
-  .trk .nm{font-size:14px}
+  .trk .nm,.group h3,.songrow .title{font-size:14px}
   .form{grid-template-columns:1fr 1fr}
   .songhead{align-items:flex-start}
 }
-@media (max-width:780px){.card{padding:16px}.songrow{padding:14px 16px}}
+@media (max-width:780px){nav{padding-top:5px}.card{padding:16px}.songrow{padding:14px 16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -353,14 +355,14 @@ function renderTracks(){
     const ic=el("span","ic");ic.innerHTML=STACHE;ic.dataset.k=k;if(k===stacheAt)ic.classList.add("on");
     const lbl=el("span","lbl");lbl.append(el("span","n",String(i+1).padStart(2,"0")),el("span","nm",s));
     b.append(lbl,p,ic);
-    b.onclick=()=>goSong(k);nav.append(b);
+    b.onclick=()=>{if(view===k)return;keepScroll(()=>{view=k;openReply=null;confirmDel=null;render()})};nav.append(b);
   });
   if(stacheAt!==view){
     const from=stacheAt;stacheAt=view;
     requestAnimationFrame(()=>requestAnimationFrame(()=>{nav.querySelectorAll(".ic").forEach(x=>x.classList.toggle("on",x.dataset.k===view));nav.querySelectorAll(".trk").forEach(x=>x.setAttribute("aria-current",x.dataset.k===view))}));
   }
 }
-function goSong(k){view=k;tab="songs";openReply=null;confirmDel=null;render();window.scrollTo({top:$("songs-view").offsetTop-12})}
+function goSong(k){const _w=document.querySelector(".wrap");if(_w)_w.style.minHeight="";view=k;tab="songs";openReply=null;confirmDel=null;render();window.scrollTo({top:$("songs-view").offsetTop-12})}
 function renderHead(){
   const h=$("songhead");h.textContent="";const wrap=el("div","songhead");
   const s=titleOf(view),st=S.songs[view]||{};
@@ -443,12 +445,19 @@ function clearErr(){const e=$("f-err");e.hidden=true;delete e.dataset.ts;$("myna
 function render(){renderTabs();renderFilters();renderTracks();renderHead();renderLists();updateForm()}
 
 /* ---------- wiring ---------- */
+document.querySelectorAll(".f").forEach(f=>{const ic=el("span","ic");ic.setAttribute("aria-hidden","true");ic.innerHTML=STACHE;f.append(ic)});
 CATS.forEach(c=>{const o=el("option",null,catLabel(c));o.value=c;$("f-cat").append(o)});
 $("myname").value=ls("tm-name");
 $("myname").addEventListener("input",()=>{ls("tm-name",myName());updateForm()});
 $("f-text").addEventListener("input",updateForm);
 $("f-ts").addEventListener("input",()=>{const e=$("f-err");if(e.dataset.ts){$("f-ts").classList.remove("bad");delete e.dataset.ts;e.hidden=true;updateForm()}});
-document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;openReply=null;render()});
+function keepScroll(fn){
+  const y=window.scrollY,w=document.querySelector(".wrap");w.style.minHeight="";fn();
+  const top=w.getBoundingClientRect().top+window.scrollY,need=y+window.innerHeight-top-parseFloat(getComputedStyle(document.body).paddingBottom||0);
+  if(w.offsetHeight<need)w.style.minHeight=need+"px";
+  window.scrollTo(0,y);
+}
+document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{if(tab===b.dataset.tab)return;keepScroll(()=>{tab=b.dataset.tab;openReply=null;render()})});
 document.querySelectorAll("[data-show]").forEach(b=>b.onclick=()=>{show=b.dataset.show;openReply=null;render()});
 document.querySelectorAll("[data-songshow]").forEach(b=>b.onclick=()=>{songShow=b.dataset.songshow;openReply=null;renderSongList()});
 $("form").addEventListener("submit",e=>{
