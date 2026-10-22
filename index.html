@@ -55,16 +55,20 @@ input[type=text]:focus,input[type=text]:focus-visible,input[type=password]:focus
 .f[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .f[aria-pressed="true"] span{color:#3a3732} .f[aria-pressed="true"] b{color:var(--bg)}
 .banner{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--glow);border-radius:4px;padding:12px 14px;font-size:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:22px;align-items:start}
+#songs-view,#review-view{padding-inline:8px}
+@media (max-width:780px){#songs-view,#review-view{padding-inline:0}}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:16px;align-items:stretch}
 @media (max-width:780px){.grid{grid-template-columns:1fr}}
-nav{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0;overflow:hidden;display:grid;grid-auto-rows:1fr;gap:2px}
-@media (max-width:780px){nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(6,1fr);grid-auto-flow:column;gap:2px 36px;background-image:linear-gradient(var(--line),var(--line));background-size:1px 100%;background-position:50% 0;background-repeat:no-repeat}}
-.trk{display:grid;grid-template-columns:minmax(0,1fr) auto 48px;gap:8px;align-items:center;padding:10px 0 10px 14px;border:0;background:none;border-radius:0;text-align:left;cursor:pointer;width:100%}
+nav{background:var(--panel);border:0;border-radius:16px;padding:0;overflow:hidden}
+.tl{display:grid;grid-auto-rows:1fr;gap:2px}
+@media (max-width:780px){.tl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(6,1fr);grid-auto-flow:column;gap:2px 36px;background-image:linear-gradient(var(--line),var(--line));background-size:1px 100%;background-position:50% 0;background-repeat:no-repeat}}
+.trk{display:grid;grid-template-columns:minmax(0,1fr) auto 48px;gap:8px;align-items:center;padding:10px 0 10px 24px;border:0;background:none;border-radius:0;text-align:left;cursor:pointer;width:100%;transition:background-color .45s ease}
 @media (max-width:780px){nav .trk{padding-right:0}nav .pl{display:none}nav .trk .nm{white-space:normal;overflow:visible;line-height:1.25}}
 .trk:hover{background:var(--panel2)}
 .trk[aria-current="true"]{background:#2a2724}
-.trk .ic{display:flex;align-items:center;justify-content:center;margin-left:-15px;width:calc(100% + 15px);color:#fff}
+.trk .ic{opacity:0;transition:opacity .45s ease;display:flex;align-items:center;justify-content:center;margin-left:-15px;width:calc(100% + 15px);color:#fff}
 .trk .lbl{display:grid;grid-template-columns:26px minmax(0,1fr);gap:8px;align-items:baseline;min-width:0}
+.trk .ic.on{opacity:1}
 .trk .ic .stache{display:block;width:16px;height:auto}
 .trk .n{font:600 12px var(--f-ui);font-variant-numeric:tabular-nums;color:var(--glow)}
 .trk .nm{font-weight:700;line-height:1.25}
@@ -83,9 +87,10 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 .group h3{display:flex;align-items:baseline;gap:12px}
 .group h3 .go{font:500 12px var(--f-body);color:var(--muted)}
 .group h3:hover .go{color:var(--glow)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:16px}
+.card{background:var(--panel);border:0;border-radius:16px;padding:24px}
 .songhead-wrap{padding-bottom:24px;border-bottom:1px solid var(--line);margin-bottom:0}
-.songhead .eyebrow{line-height:1.5}
+.songhead .eyebrow{font:500 15px/1.5 var(--f-ui);letter-spacing:.01em}
+.songnotes .listhead .hint{font-family:var(--f-ui);font-variant-numeric:tabular-nums}
 .songhead .title{line-height:1.15}
 .titleline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
 .opencount{font:500 13px var(--f-mono);color:var(--glow);white-space:nowrap}
@@ -107,6 +112,9 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 .check input{width:18px;height:18px;accent-color:var(--glow)}
 .form .who{margin-top:0;grid-column:1/-1}
 .form .rtcheck{margin-top:0;justify-self:end}
+.req{color:var(--glow);font-weight:600;margin-left:3px}
+.formerr{margin:0;padding:10px 14px;border:0;border-radius:12px;background:rgba(255,75,58,.08);color:#ffb3ab;font-size:14px;line-height:1.4}
+.form .bad{border-color:var(--must)!important}
 .form .addbtn{width:100%;margin-top:0;grid-column:1/-1;height:42px}
 .btn{height:42px}
 .btn{background:var(--glow);color:var(--glow-ink);border:0;border-radius:12px;padding:10px 18px;font:400 17px/1 var(--f-display);letter-spacing:.05em;cursor:pointer}
@@ -137,12 +145,13 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 .group{display:flex;flex-direction:column;gap:10px}
 .group h3{font:400 24px/1 var(--f-display);margin:8px 0 0;cursor:pointer}
 .group h3:hover{color:var(--glow)}
-.songrow{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:12px 14px;cursor:pointer}
+.songrow{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:0;border-radius:16px;padding:16px 24px;cursor:pointer}
 .songrow:hover{border-color:var(--muted)}
 .songrow .title{font-size:24px}
 .danger{color:var(--must)}
 @media (max-width:780px){
-  nav{padding:0;overflow:hidden;column-gap:0!important}
+  nav{padding:0;overflow:hidden}
+  .tl{column-gap:0!important}
   nav .trk{border-radius:0;padding:10px 0 10px 10px}
   nav .trk[aria-current="true"]{box-shadow:none}
 }
@@ -156,6 +165,7 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
   .form{grid-template-columns:1fr 1fr}
   .songhead{align-items:flex-start}
 }
+@media (max-width:780px){.card{padding:16px}.songrow{padding:14px 16px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -187,18 +197,19 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
   </section>
 
   <section id="songs-view" class="grid" role="tabpanel" aria-labelledby="tab-songs" hidden>
-    <nav id="tracks" aria-label="Songs"></nav>
+    <nav aria-label="Songs"><div id="tracks" class="tl"></div></nav>
     <main>
       <section class="card">
         <div class="songhead-wrap" id="songhead"></div>
         <form id="form" class="form" autocomplete="off">
-          <label class="field"><span>Subject</span><select id="f-cat"></select></label>
-          <label class="field"><span>Priority</span>
+          <label class="field"><span>Subject<b class="req" aria-hidden="true">*</b></span><select id="f-cat"></select></label>
+          <label class="field"><span>Priority<b class="req" aria-hidden="true">*</b></span>
             <select id="f-pri"><option value="must">Must fix</option><option value="want" selected>Would like</option><option value="minor">Minor</option></select></label>
           <label class="field"><span>Time (m:ss)</span><input type="text" id="f-ts" placeholder="2:14 (optional)" inputmode="numeric"></label>
-          <label class="field full notefield"><span>Note</span><textarea id="f-text" placeholder="Add your note here"></textarea></label>
+          <label class="field full notefield"><span>Note<b class="req" aria-hidden="true">*</b></span><textarea id="f-text" placeholder="Add your note here"></textarea></label>
           <label class="check full rtcheck"><input type="checkbox" id="f-rt"> Might need re-tracking</label>
-          <label class="field who"><span>Who's writing?</span><input type="text" id="myname" placeholder="Your name" maxlength="40"></label>
+          <label class="field who"><span>Who's writing?<b class="req" aria-hidden="true">*</b></span><input type="text" id="myname" placeholder="Your name" maxlength="40"></label>
+          <p class="formerr full" id="f-err" role="alert" hidden></p>
           <button class="btn addbtn" id="f-add" type="submit">Add note</button>
         </form>
         <div class="songnotes">
@@ -332,17 +343,22 @@ function renderFilters(){
   $("c-ok").textContent=SONGS.filter(s=>isApproved(slug(s))).length+"/"+SONGS.length;
   document.querySelectorAll("[data-show]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.show===show));
 }
+let stacheAt=null;
 function renderTracks(){
   const nav=$("tracks");nav.textContent="";
   SONGS.forEach((s,i)=>{
-    const k=slug(s),b=el("button","trk");b.type="button";b.setAttribute("aria-current",view===k);
+    const k=slug(s),b=el("button","trk");b.type="button";b.dataset.k=k;b.setAttribute("aria-current",k===(stacheAt??view));
     const open=songNotes(k).filter(n=>!n.resolved),must=open.filter(n=>n.pri==="must").length;
     const p=isApproved(k)?(()=>{const x=el("span","pill ok","✓");x.append(el("span","pl"," Approved"));x.title="Approved";return x})():must?(()=>{const x=el("span","pill must",String(must));x.append(el("span","pl"," must"));x.title=must+" must fix";return x})():el("span","pill",String(open.length));
-    const ic=el("span","ic");if(view===k)ic.innerHTML=STACHE;
+    const ic=el("span","ic");ic.innerHTML=STACHE;ic.dataset.k=k;if(k===stacheAt)ic.classList.add("on");
     const lbl=el("span","lbl");lbl.append(el("span","n",String(i+1).padStart(2,"0")),el("span","nm",s));
     b.append(lbl,p,ic);
     b.onclick=()=>goSong(k);nav.append(b);
   });
+  if(stacheAt!==view){
+    const from=stacheAt;stacheAt=view;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{nav.querySelectorAll(".ic").forEach(x=>x.classList.toggle("on",x.dataset.k===view));nav.querySelectorAll(".trk").forEach(x=>x.setAttribute("aria-current",x.dataset.k===view))}));
+  }
 }
 function goSong(k){view=k;tab="songs";openReply=null;confirmDel=null;render();window.scrollTo({top:$("songs-view").offsetTop-12})}
 function renderHead(){
@@ -416,7 +432,14 @@ function renderSongList(){
   sortNotes(vis).forEach(n=>list.append(noteEl(n)));
 }
 function renderLists(){if(tab==="review")renderReview();else renderSongList()}
-function updateForm(){$("f-add").disabled=!store||!myName()||!$("f-text").value.trim()}
+function updateForm(){
+  const err=$("f-err");if(err.hidden)return;
+  const nameOk=!!myName(),textOk=!!$("f-text").value.trim();
+  $("myname").classList.toggle("bad",!nameOk);$("f-text").classList.toggle("bad",!textOk);
+  if(nameOk&&textOk&&!err.dataset.ts){err.hidden=true}
+}
+function showErr(msg){const e=$("f-err");e.textContent=msg;e.hidden=false}
+function clearErr(){const e=$("f-err");e.hidden=true;delete e.dataset.ts;$("myname").classList.remove("bad");$("f-text").classList.remove("bad");$("f-ts").classList.remove("bad")}
 function render(){renderTabs();renderFilters();renderTracks();renderHead();renderLists();updateForm()}
 
 /* ---------- wiring ---------- */
@@ -424,15 +447,22 @@ CATS.forEach(c=>{const o=el("option",null,catLabel(c));o.value=c;$("f-cat").appe
 $("myname").value=ls("tm-name");
 $("myname").addEventListener("input",()=>{ls("tm-name",myName());updateForm()});
 $("f-text").addEventListener("input",updateForm);
+$("f-ts").addEventListener("input",()=>{const e=$("f-err");if(e.dataset.ts){$("f-ts").classList.remove("bad");delete e.dataset.ts;e.hidden=true;updateForm()}});
 document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;openReply=null;render()});
 document.querySelectorAll("[data-show]").forEach(b=>b.onclick=()=>{show=b.dataset.show;openReply=null;render()});
 document.querySelectorAll("[data-songshow]").forEach(b=>b.onclick=()=>{songShow=b.dataset.songshow;openReply=null;renderSongList()});
 $("form").addEventListener("submit",e=>{
-  e.preventDefault();if(!store)return;
-  const name=myName();if(!name){flash("Add your name first so everyone knows who left the note.");$("myname").focus();return}
+  e.preventDefault();
+  const name=myName(),text=$("f-text").value.trim();
+  if(!name||!text){
+    showErr("Please fill out the required fields marked with *.");
+    delete $("f-err").dataset.ts;$("f-ts").classList.remove("bad");
+    $("f-text").classList.toggle("bad",!text);$("myname").classList.toggle("bad",!name);
+    (!text?$("f-text"):$("myname")).focus();return}
   const ts=parseTs($("f-ts").value);
-  if(Number.isNaN(ts)){flash("Time should look like 2:14 (minutes:seconds), or leave it blank.");$("f-ts").focus();return}
-  const text=$("f-text").value.trim();if(!text)return;
+  if(Number.isNaN(ts)){showErr("Time should look like 2:14 (minutes:seconds), or leave it blank.");$("f-err").dataset.ts="1";$("f-ts").classList.add("bad");$("f-ts").focus();return}
+  if(!store){showErr("Still connecting to the shared notes. Try again in a moment.");return}
+  clearErr();
   const n={id:uid(),song:view,ts:ts,cat:$("f-cat").value,pri:$("f-pri").value,retrack:$("f-rt").checked,text:text,from:name,author:myId,resolved:false,resolvedBy:"",reply:"",replyFrom:"",createdAt:Date.now()};
   store.add(n).then(()=>{},()=>flash("Couldn't add the note. Try again in a moment."));
   $("f-text").value="";$("f-ts").value="";$("f-rt").checked=false;$("f-text").focus();updateForm();
