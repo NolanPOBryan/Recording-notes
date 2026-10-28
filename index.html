@@ -91,6 +91,27 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
 .group h3:hover .go{color:var(--glow)}
 .card{background:var(--panel);border:0;border-radius:16px;padding:24px}
 .songhead-wrap{padding-bottom:24px;border-bottom:1px solid var(--line);margin-bottom:0}
+.songhead-wrap{display:flex;flex-direction:column;gap:20px}
+.player{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:12px;padding:8px 14px 8px 8px;min-height:52px}
+.pl-btn{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--glow);color:var(--glow-ink);display:grid;place-items:center;cursor:pointer;padding:0}
+.pl-btn:disabled{background:var(--line);color:var(--muted);cursor:default}
+.pl-btn svg{display:block}
+.pl-time{font:500 12px var(--f-ui);font-variant-numeric:tabular-nums;color:var(--muted);min-width:34px}
+.pl-seek{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:linear-gradient(var(--glow),var(--glow)) 0/var(--pct,0%) 100% no-repeat,var(--line);cursor:pointer;margin:0}
+.pl-seek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--ink);border:0}
+.pl-seek::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ink);border:0}
+.pl-seek:disabled{cursor:default}.pl-seek:disabled::-webkit-slider-thumb{background:var(--muted)}
+.pl-msg{display:none;font:500 13px var(--f-ui);color:var(--muted)}
+.player:not(.ready) .pl-msg{display:block;flex:1}
+.player:not(.ready) .pl-time,.player:not(.ready) .pl-seek{display:none}
+.tslabel{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.now{background:none;border:0;padding:0;font:500 12px/1 var(--f-ui);color:var(--glow);cursor:pointer}
+.now:hover{text-decoration:underline}
+.tslabel{white-space:nowrap}.now .sm{display:none}
+@media (max-width:640px){.now .lg{display:none}.now .sm{display:inline}}
+button.ts{background:none;border:0;padding:0;text-align:left;cursor:pointer;align-self:start}
+button.ts:hover{text-decoration:underline}
+
 .songhead .eyebrow{font:500 15px/1.5 var(--f-ui);letter-spacing:.01em}
 .songnotes .listhead .hint{font-family:var(--f-ui);font-variant-numeric:tabular-nums}
 .songhead .title{line-height:1.15}
@@ -202,12 +223,21 @@ main{display:flex;flex-direction:column;gap:14px;min-width:0}
     <nav aria-label="Songs"><div id="tracks" class="tl"></div></nav>
     <main>
       <section class="card">
-        <div class="songhead-wrap" id="songhead"></div>
+        <div class="songhead-wrap">
+          <div id="songhead"></div>
+          <div class="player loading" id="player">
+            <button class="pl-btn" id="pl-btn" type="button" aria-label="Play" disabled></button>
+            <span class="pl-time" id="pl-cur">0:00</span>
+            <input class="pl-seek" id="pl-seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="Seek" disabled>
+            <span class="pl-time" id="pl-dur">0:00</span>
+            <span class="pl-msg" id="pl-msg">Loading mix…</span>
+          </div>
+        </div>
         <form id="form" class="form" autocomplete="off">
           <label class="field"><span>Subject<b class="req" aria-hidden="true">*</b></span><select id="f-cat"></select></label>
           <label class="field"><span>Priority<b class="req" aria-hidden="true">*</b></span>
             <select id="f-pri"><option value="must">Must fix</option><option value="want" selected>Would like</option><option value="minor">Minor</option></select></label>
-          <label class="field"><span>Time (m:ss)</span><input type="text" id="f-ts" placeholder="2:14 (optional)" inputmode="numeric"></label>
+          <label class="field"><span class="tslabel">Time (m:ss)<button type="button" class="now" id="f-now" hidden><span class="lg">Use player time</span><span class="sm">Now</span></button></span><input type="text" id="f-ts" placeholder="2:14 (optional)" inputmode="numeric"></label>
           <label class="field full notefield"><span>Note<b class="req" aria-hidden="true">*</b></span><textarea id="f-text" placeholder="Add your note here"></textarea></label>
           <label class="check full rtcheck"><input type="checkbox" id="f-rt"> Might need re-tracking</label>
           <label class="field who"><span>Who's writing?<b class="req" aria-hidden="true">*</b></span><input type="text" id="myname" placeholder="Your name" maxlength="40"></label>
@@ -364,6 +394,7 @@ function renderTracks(){
 }
 function goSong(k){const _w=document.querySelector(".wrap");if(_w)_w.style.minHeight="";view=k;tab="songs";openReply=null;confirmDel=null;render();window.scrollTo({top:$("songs-view").offsetTop-12})}
 function renderHead(){
+  loadAudio(view);
   const h=$("songhead");h.textContent="";const wrap=el("div","songhead");
   const s=titleOf(view),st=S.songs[view]||{};
   const openN=songNotes(view).filter(n=>!n.resolved).length;
@@ -376,7 +407,9 @@ function renderHead(){
 }
 function noteEl(n){
   const d=el("article","note p-"+n.pri+(n.resolved?" done":""));
-  d.append(el("div","ts",fmtTs(n.ts)));
+  if(n.ts!=null&&n.ts!==""){const tb=el("button","ts",fmtTs(n.ts));tb.type="button";tb.title="Play from "+fmtTs(n.ts);
+    tb.onclick=()=>{if(view!==n.song||tab!=="songs")goSong(n.song);seekTo(n.song,+n.ts)};d.append(tb)}
+  else d.append(el("div","ts",fmtTs(n.ts)));
   const b=el("div","body"),meta=el("div","meta");
   meta.append(el("span","chip "+n.pri,PRI[n.pri]||n.pri),el("span","chip",catLabel(n.cat)));
   if(n.retrack)meta.append(el("span","chip rt","Re-track?"));
@@ -443,6 +476,55 @@ function updateForm(){
 function showErr(msg){const e=$("f-err");e.textContent=msg;e.hidden=false}
 function clearErr(){const e=$("f-err");e.hidden=true;delete e.dataset.ts;$("myname").classList.remove("bad");$("f-text").classList.remove("bad");$("f-ts").classList.remove("bad")}
 function render(){renderTabs();renderFilters();renderTracks();renderHead();renderLists();updateForm()}
+
+/* ---------- audio player ---------- */
+// Each song plays audio/<song-name>.mp3 from the same folder as this page.
+// To use other links (Dropbox, Supabase), add them here, e.g. "blackout":"https://...mp3"
+const AUDIO_URLS = {};
+const AUDIO_DIR = "audio/";
+const audio = new Audio(); audio.preload = "metadata";
+let audioFor = null, pendingSeek = null;
+const PLAY='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></svg>';
+const PAUSE='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>';
+function audioSrc(k){return AUDIO_URLS[k]||(AUDIO_DIR+k+".mp3")}
+function audioReady(){return audioFor===view&&isFinite(audio.duration)&&audio.duration>0}
+function loadAudio(k){
+  if(audioFor===k)return;
+  audioFor=k;audio.pause();
+  const p=$("player");p.classList.remove("ready");p.classList.add("loading");
+  $("pl-msg").textContent="Loading mix…";
+  audio.src=audioSrc(k);audio.load();
+  syncPlayer();
+}
+function syncPlayer(){
+  const ok=audioReady();
+  $("player").classList.toggle("ready",ok);
+  $("pl-btn").disabled=!ok;$("pl-seek").disabled=!ok;$("f-now").hidden=!ok;
+  $("pl-btn").innerHTML=audio.paused?PLAY:PAUSE;
+  $("pl-btn").setAttribute("aria-label",audio.paused?"Play":"Pause");
+  const d=ok?audio.duration:0,t=ok?audio.currentTime:0;
+  $("pl-cur").textContent=fmtTs(Math.floor(t));$("pl-dur").textContent=ok?fmtTs(Math.floor(d)):"0:00";
+  const seek=$("pl-seek");seek.max=d||0;if(!seek.matches(":active"))seek.value=t;
+  seek.style.setProperty("--pct",(d?t/d*100:0)+"%");
+}
+function seekTo(k,sec){
+  if(view!==k)return;
+  if(audioReady()){audio.currentTime=Math.min(sec,audio.duration-0.1);audio.play().catch(()=>{});}
+  else pendingSeek=sec;
+}
+audio.addEventListener("loadedmetadata",()=>{
+  $("player").classList.remove("loading");$("pl-msg").textContent="";
+  if(pendingSeek!=null){audio.currentTime=Math.min(pendingSeek,audio.duration-0.1);pendingSeek=null;audio.play().catch(()=>{})}
+  syncPlayer();
+});
+audio.addEventListener("error",()=>{
+  const p=$("player");p.classList.remove("loading","ready");pendingSeek=null;
+  $("pl-msg").textContent="No mix uploaded for this song yet.";syncPlayer();
+});
+["timeupdate","play","pause","ended","durationchange"].forEach(e=>audio.addEventListener(e,syncPlayer));
+$("pl-btn").onclick=()=>{if(!audioReady())return;audio.paused?audio.play().catch(()=>{}):audio.pause()};
+$("pl-seek").addEventListener("input",e=>{if(audioReady()){audio.currentTime=+e.target.value;syncPlayer()}});
+$("f-now").onclick=()=>{if(!audioReady())return;$("f-ts").value=fmtTs(Math.floor(audio.currentTime));$("f-ts").dispatchEvent(new Event("input"));$("f-ts").classList.remove("bad")};
 
 /* ---------- wiring ---------- */
 document.querySelectorAll(".f").forEach(f=>{const ic=el("span","ic");ic.setAttribute("aria-hidden","true");ic.innerHTML=STACHE;f.append(ic)});
