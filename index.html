@@ -66,6 +66,8 @@ nav{background:var(--panel);border:0;border-radius:16px;padding:14px 0 0;overflo
 @media (max-width:780px){.tl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(6,1fr);grid-auto-flow:column;gap:2px 36px;background-image:linear-gradient(var(--line),var(--line));background-size:1px 100%;background-position:50% 0;background-repeat:no-repeat}}
 .trk{display:grid;grid-template-columns:minmax(0,1fr) auto 48px;gap:8px;align-items:center;padding:10px 0 10px 24px;border:0;background:none;border-radius:0;text-align:left;cursor:pointer;width:100%;transition:background-color .45s ease}
 @media (max-width:780px){nav .trk{padding-right:0}nav .pl{display:none}nav .trk .nm{white-space:normal;overflow:visible;line-height:1.25}}
+.trk{user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.posted{white-space:nowrap}
 .trk:hover{background:var(--panel2)}
 .trk[aria-current="true"]{background:#2a2724}
 .trk .ic{opacity:0;transition:opacity .45s ease;display:flex;align-items:center;justify-content:center;margin-left:-15px;width:calc(100% + 15px);color:#fff}
@@ -146,6 +148,8 @@ button.ts:hover{text-decoration:underline}
 .ghost:hover{border-color:var(--muted)}
 .ghost.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .ghost.plus{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;font-family:var(--f-ui);font-weight:600;font-variant-numeric:tabular-nums}
+.ghost.plus .p1{display:flex}.ghost.plus .thumb{display:block}
+.ghost.plus.on .thumb path{fill:currentColor;fill-opacity:.25}
 .ghost.plus .pc{font-weight:500;color:var(--muted)}
 .ghost.plus.on{background:rgba(255,138,43,.14);border-color:var(--glow);color:var(--glow)}
 .ghost.plus.on .pc{color:var(--glow)}
@@ -368,6 +372,9 @@ function match(n,f){
   if(f==="done")return !!n.resolved;
   return true;
 }
+function fmtPosted(ms){const d=new Date(+ms),now=new Date();
+  const o={month:"short",day:"numeric",hour:"numeric",minute:"2-digit"};if(d.getFullYear()!==now.getFullYear())o.year="numeric";
+  return d.toLocaleString(undefined,o)}
 const plusCount=n=>Array.isArray(n.plus)?n.plus.length:0;
 const sortNotes=a=>a.slice().sort((x,y)=>{const px=plusCount(x),py=plusCount(y);if(px!==py)return py-px;const tx=x.ts==null?1e9:+x.ts,ty=y.ts==null?1e9:+y.ts;return tx-ty||(x.createdAt||0)-(y.createdAt||0)});
 
@@ -386,6 +393,12 @@ function renderFilters(){
   document.querySelectorAll("[data-show]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.show===show));
 }
 let stacheAt=null;
+function playTrack(k){
+  if(NO_AUDIO.includes(k))return;
+  if(view!==k)keepScroll(()=>{view=k;openReply=null;confirmDel=null;render()});
+  if(audioFor!==k)loadAudio(k);
+  audio.play().catch(()=>{});
+}
 function renderTracks(){
   const nav=$("tracks");nav.textContent="";
   SONGS.forEach((s,i)=>{
@@ -424,6 +437,7 @@ function noteEl(n){
   meta.append(el("span","chip "+n.pri,PRI[n.pri]||n.pri),el("span","chip",catLabel(n.cat)));
   if(n.retrack)meta.append(el("span","chip rt","Re-track?"));
   meta.append(el("span",null,"· "+(n.from||"Someone")));
+  if(n.createdAt){const tm=el("time","posted","· "+fmtPosted(n.createdAt));const d=new Date(+n.createdAt);tm.dateTime=d.toISOString();tm.title="Posted "+d.toLocaleString();meta.append(tm)}
   b.append(meta,el("div","txt",n.text));
   if(n.reply){const r=el("div","reply");r.append(el("small",null,(n.replyFrom||"Reply")+":"),document.createTextNode(n.reply));b.append(r)}
   const row=el("div","row");
@@ -432,14 +446,14 @@ function noteEl(n){
   ck.append(cb,document.createTextNode(n.resolved?"Done"+(n.resolvedBy?" ("+n.resolvedBy+")":""):"Mark done"));row.append(ck);
   const plus=Array.isArray(n.plus)?n.plus:[],mine=plus.some(v=>v.id===myId),own=!!n.author&&n.author===myId;
   const pb=el("button","ghost plus"+(mine?" on":""));pb.type="button";
-  pb.append(el("span","p1","+1"));if(plus.length)pb.append(el("span","pc",String(plus.length)));
+  const th=el("span","p1");th.innerHTML='<svg class="thumb" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3zm2 0 3.6-7.2A1.5 1.5 0 0 1 15.4 4L14.5 9H19a2 2 0 0 1 2 2.3l-1.3 8A2 2 0 0 1 17.7 21H9V10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';pb.append(th);if(plus.length)pb.append(el("span","pc",String(plus.length)));
   pb.title=own?"You wrote this note":(plus.length?plus.map(v=>v.name||"Someone").join(", ")+" agreed":"Agree with this note");
-  pb.setAttribute("aria-pressed",mine);pb.setAttribute("aria-label",(mine?"Remove your +1":"+1, agree with this note")+(plus.length?" ("+plus.length+")":""));
+  pb.setAttribute("aria-pressed",mine);pb.setAttribute("aria-label",(mine?"Remove your thumbs up":"Thumbs up, agree with this note")+(plus.length?" ("+plus.length+")":""));
   pb.disabled=own;
   pb.onclick=()=>{
     const name=myName();if(!mine&&!name){flash("Add your name in \"Who's writing?\" first so the band knows who agreed.");$("myname").focus();return}
     const next=mine?plus.filter(v=>v.id!==myId):plus.concat([{id:myId,name:name}]);
-    store.update(n.id,{plus:next}).catch(()=>flash("Couldn't save your +1."));
+    store.update(n.id,{plus:next}).catch(()=>flash("Couldn't save your thumbs up."));
   };
   row.append(pb);
   const rb=el("button","ghost",n.reply?"Edit reply":"Reply");rb.type="button";
@@ -558,6 +572,10 @@ $("pl-btn").onclick=()=>{if(!audioReady())return;audio.paused?audio.play().catch
 $("pl-seek").addEventListener("input",e=>{if(audioReady()){audio.currentTime=+e.target.value;syncPlayer()}});
 $("f-now").onclick=()=>{if(!audioReady())return;$("f-ts").value=fmtTs(Math.floor(audio.currentTime));$("f-ts").dispatchEvent(new Event("input"));$("f-ts").classList.remove("bad")};
 
+$("tracks").addEventListener("dblclick",e=>{const t=e.target.closest(".trk");if(!t||!t.dataset.k)return;e.preventDefault();playTrack(t.dataset.k)});
+let lastTap={k:null,t:0};
+$("tracks").addEventListener("pointerup",e=>{if(e.pointerType==="mouse")return;const t=e.target.closest(".trk");if(!t||!t.dataset.k)return;
+  const now=Date.now();if(lastTap.k===t.dataset.k&&now-lastTap.t<400){lastTap={k:null,t:0};playTrack(t.dataset.k)}else lastTap={k:t.dataset.k,t:now}});
 /* ---------- wiring ---------- */
 document.querySelectorAll(".f").forEach(f=>{const ic=el("span","ic");ic.setAttribute("aria-hidden","true");ic.innerHTML=STACHE;f.append(ic)});
 CATS.forEach(c=>{const o=el("option",null,catLabel(c));o.value=c;$("f-cat").append(o)});
