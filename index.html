@@ -213,7 +213,7 @@ button.ts:hover{text-decoration:underline}
       <button class="f rt" type="button" data-show="rt"><b id="c-rt">0</b><span>Re-track?</span></button>
       <button class="f" type="button" data-show="done"><b id="c-done">0</b><span>Resolved</span></button>
       <button class="f" type="button" data-show="all"><b id="c-all">0</b><span>All notes</span></button>
-      <button class="f" type="button" data-show="approved"><b id="c-ok">0/11</b><span>Approved</span></button>
+      <button class="f" type="button" data-show="approved"><b id="c-ok">0/12</b><span>Approved</span></button>
     </div>
     <div class="listhead"><h2 id="listtitle">Open notes</h2><span class="hint" id="count"></span></div>
     <div id="list" class="notes"></div>
@@ -265,7 +265,7 @@ button.ts:hover{text-decoration:underline}
 const SUPABASE_URL = "https://wshaivjosdzcsdsobbuj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_qRaM3iD_9Yogd-ZvZAU9Vw_XhoeWI60";
 
-const SONGS=["Beaches","Blackout","Chaos Monster","One Million Beers","Only Fan","Real Good Time","Runnin","Sleep on your Titties","String Bikini","The Boss","Whiskey Dick"];
+const SONGS=["Beaches","Blackout","Chaos Monster","One Million Beers","Only Fan","Real Good Time","Ride Away","Runnin","Sleep on your Titties","String Bikini","The Boss","Whiskey Dick"];
 const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,"-");
 const titleOf=k=>SONGS.find(s=>slug(s)===k)||k;
 const CATS=["General","Vocals","Drums","Bass","Guitars","Keys / Other","Levels & balance","Tone / EQ","Effects","Edits & timing","Arrangement"];
@@ -276,6 +276,7 @@ const PRI={must:"Must fix",want:"Would like",minor:"Minor"};
 const SHOW={open:"Open notes",must:"Must fix, still open",rt:"Flagged for re-tracking",done:"Resolved notes",all:"All notes",approved:"Song sign-off"};
 const $=id=>document.getElementById(id);
 const S={notes:[],songs:{}};
+const replyDraft={};let replyJustOpened=false,listsPending=false;
 let store=null, myId="", tab="songs", view="beaches", show="open", songShow="open", confirmDel=null, openReply=null, demo=false;
 
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k)||"";localStorage.setItem(k,v)}catch(e){return ""}}
@@ -312,7 +313,8 @@ function supabaseStore(url,key){
     if(!r.ok){const m=(j&&(j.message||j.hint))||txt||"";throw new Error(/unauthorized/i.test(m)?"unauthorized":"server")}
     return j;
   }
-  async function pull(){if(busy)return;try{const j=await call("mix_list");S.notes=(j&&j.notes)||[];S.songs=(j&&j.songs)||{};hideBanner();cb()}catch(e){onErr(e)}}
+  let lastSig="";
+  async function pull(){if(busy)return;try{const j=await call("mix_list");const sig=JSON.stringify(j);hideBanner();if(sig===lastSig)return;lastSig=sig;S.notes=(j&&j.notes)||[];S.songs=(j&&j.songs)||{};cb()}catch(e){onErr(e)}}
   function onErr(e){if(e.message==="unauthorized")askKey();else flash("Can't reach the shared notes right now. It will retry on its own.")}
   async function write(fn,args,local){busy++;local();cb();try{await call(fn,args)}catch(e){onErr(e)}finally{busy--;pull()}}
   return{
@@ -407,7 +409,7 @@ function renderHead(){
 }
 function noteEl(n){
   const d=el("article","note p-"+n.pri+(n.resolved?" done":""));
-  if(n.ts!=null&&n.ts!==""){const tb=el("button","ts",fmtTs(n.ts));tb.type="button";tb.title="Play from "+fmtTs(n.ts);
+  if(n.ts!=null&&n.ts!==""&&!NO_AUDIO.includes(n.song)){const tb=el("button","ts",fmtTs(n.ts));tb.type="button";tb.title="Play from "+fmtTs(n.ts);
     tb.onclick=()=>{if(view!==n.song||tab!=="songs")goSong(n.song);seekTo(n.song,+n.ts)};d.append(tb)}
   else d.append(el("div","ts",fmtTs(n.ts)));
   const b=el("div","body"),meta=el("div","meta");
@@ -421,7 +423,7 @@ function noteEl(n){
   cb.onchange=()=>store.update(n.id,{resolved:cb.checked,resolvedBy:cb.checked?myName():""}).catch(()=>flash("Couldn't save that change."));
   ck.append(cb,document.createTextNode(n.resolved?"Done"+(n.resolvedBy?" ("+n.resolvedBy+")":""):"Mark done"));row.append(ck);
   const rb=el("button","ghost",n.reply?"Edit reply":"Reply");rb.type="button";
-  rb.onclick=()=>{openReply=openReply===n.id?null:n.id;renderLists()};row.append(rb);
+  rb.onclick=()=>{openReply=openReply===n.id?null:n.id;replyJustOpened=!!openReply;renderLists()};row.append(rb);
   if(n.author&&n.author===myId){
     const del=el("button","ghost danger",confirmDel===n.id?"Click again to delete":"Delete");del.type="button";
     del.onclick=()=>{if(confirmDel!==n.id){confirmDel=n.id;renderLists();return}confirmDel=null;store.remove(n.id).catch(()=>flash("Couldn't delete that note."))};
@@ -429,10 +431,11 @@ function noteEl(n){
   }
   b.append(row);
   if(openReply===n.id){
-    const box=el("div","replybox"),ta=el("textarea");ta.id="reply-"+n.id;ta.value=n.reply||"";ta.placeholder="e.g. Fixed in the next mix, or: can't fix without re-tracking, here's why.";
+    const box=el("div","replybox"),ta=el("textarea");ta.id="reply-"+n.id;ta.className="replyta";ta.value=(n.id in replyDraft)?replyDraft[n.id]:(n.reply||"");ta.oninput=()=>{replyDraft[n.id]=ta.value};ta.onblur=()=>setTimeout(()=>{if(listsPending&&!replyFocused()){listsPending=false;renderLists()}},0);ta.placeholder="e.g. Fixed in the next mix, or: can't fix without re-tracking, here's why.";
     const sv=el("button","btn","Save reply");sv.type="button";
-    sv.onclick=()=>{store.update(n.id,{reply:ta.value.trim(),replyFrom:myName()}).catch(()=>flash("Couldn't save the reply."));openReply=null;renderLists()};
-    box.append(ta,sv);b.append(box);setTimeout(()=>ta.focus(),0);
+    sv.onclick=()=>{store.update(n.id,{reply:ta.value.trim(),replyFrom:myName()}).catch(()=>flash("Couldn't save the reply."));delete replyDraft[n.id];openReply=null;listsPending=false;renderLists()};
+    box.append(ta,sv);b.append(box);
+    if(replyJustOpened){replyJustOpened=false;setTimeout(()=>{ta.focus({preventScroll:true});const L=ta.value.length;ta.setSelectionRange(L,L)},0)}
   }
   d.append(b);return d;
 }
@@ -466,7 +469,8 @@ function renderSongList(){
   if(!vis.length){list.append(emptyBox(songShow==="open"?"No open notes on this song.":"Nothing here yet."));return}
   sortNotes(vis).forEach(n=>list.append(noteEl(n)));
 }
-function renderLists(){if(tab==="review")renderReview();else renderSongList()}
+function replyFocused(){const a=document.activeElement;return !!(a&&a.classList&&a.classList.contains("replyta"))}
+function renderLists(){if(replyFocused()){listsPending=true;return}if(tab==="review")renderReview();else renderSongList()}
 function updateForm(){
   const err=$("f-err");if(err.hidden)return;
   const nameOk=!!myName(),textOk=!!$("f-text").value.trim();
@@ -478,10 +482,12 @@ function clearErr(){const e=$("f-err");e.hidden=true;delete e.dataset.ts;$("myna
 function render(){renderTabs();renderFilters();renderTracks();renderHead();renderLists();updateForm()}
 
 /* ---------- audio player ---------- */
-// Each song plays audio/<song-name>.mp3 from the same folder as this page.
-// To use other links (Dropbox, Supabase), add them here, e.g. "blackout":"https://...mp3"
+// Each song plays <song-name>.mp3 from the "audio" bucket in Supabase Storage.
+// To use a different link for a song, add it here, e.g. "blackout":"https://...mp3"
 const AUDIO_URLS = {};
-const AUDIO_DIR = "audio/";
+// Songs with no mix yet: the player is hidden for these. Remove a song from this list once its MP3 is uploaded.
+const NO_AUDIO = ["ride-away"];
+const AUDIO_DIR = (typeof SUPABASE_URL!=="undefined"&&SUPABASE_URL) ? SUPABASE_URL.replace(/\/+$/,"")+"/storage/v1/object/public/audio/" : "audio/";
 const audio = new Audio(); audio.preload = "metadata";
 let audioFor = null, pendingSeek = null;
 const PLAY='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></svg>';
@@ -489,8 +495,10 @@ const PAUSE='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
 function audioSrc(k){return AUDIO_URLS[k]||(AUDIO_DIR+k+".mp3")}
 function audioReady(){return audioFor===view&&isFinite(audio.duration)&&audio.duration>0}
 function loadAudio(k){
+  $("player").hidden=NO_AUDIO.includes(k);
   if(audioFor===k)return;
   audioFor=k;audio.pause();
+  if(NO_AUDIO.includes(k)){audio.removeAttribute("src");audio.load();syncPlayer();return}
   const p=$("player");p.classList.remove("ready");p.classList.add("loading");
   $("pl-msg").textContent="Loading mix…";
   audio.src=audioSrc(k);audio.load();
