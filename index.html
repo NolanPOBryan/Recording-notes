@@ -145,6 +145,13 @@ button.ts:hover{text-decoration:underline}
 .ghost{background:none;border:1px solid var(--line);border-radius:3px;padding:6px 12px;cursor:pointer;font-size:13px}
 .ghost:hover{border-color:var(--muted)}
 .ghost.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ghost.plus{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;font-family:var(--f-ui);font-weight:600;font-variant-numeric:tabular-nums}
+.ghost.plus .pc{font-weight:500;color:var(--muted)}
+.ghost.plus.on{background:rgba(255,138,43,.14);border-color:var(--glow);color:var(--glow)}
+.ghost.plus.on .pc{color:var(--glow)}
+.ghost.plus:disabled{cursor:default;opacity:.55}
+.ghost.plus:disabled:hover{border-color:var(--line)}
+
 .hint{font-size:13px;color:var(--muted)}
 .listhead{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between}
 .listhead h2{font:400 22px/1 var(--f-display);letter-spacing:.03em;margin:0}
@@ -361,7 +368,8 @@ function match(n,f){
   if(f==="done")return !!n.resolved;
   return true;
 }
-const sortNotes=a=>a.slice().sort((x,y)=>{const tx=x.ts==null?1e9:+x.ts,ty=y.ts==null?1e9:+y.ts;return tx-ty||(x.createdAt||0)-(y.createdAt||0)});
+const plusCount=n=>Array.isArray(n.plus)?n.plus.length:0;
+const sortNotes=a=>a.slice().sort((x,y)=>{const px=plusCount(x),py=plusCount(y);if(px!==py)return py-px;const tx=x.ts==null?1e9:+x.ts,ty=y.ts==null?1e9:+y.ts;return tx-ty||(x.createdAt||0)-(y.createdAt||0)});
 
 function renderTabs(){
   document.querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===tab));
@@ -422,6 +430,18 @@ function noteEl(n){
   const ck=el("label","check"),cb=el("input");cb.type="checkbox";cb.checked=!!n.resolved;cb.id="done-"+n.id;
   cb.onchange=()=>store.update(n.id,{resolved:cb.checked,resolvedBy:cb.checked?myName():""}).catch(()=>flash("Couldn't save that change."));
   ck.append(cb,document.createTextNode(n.resolved?"Done"+(n.resolvedBy?" ("+n.resolvedBy+")":""):"Mark done"));row.append(ck);
+  const plus=Array.isArray(n.plus)?n.plus:[],mine=plus.some(v=>v.id===myId),own=!!n.author&&n.author===myId;
+  const pb=el("button","ghost plus"+(mine?" on":""));pb.type="button";
+  pb.append(el("span","p1","+1"));if(plus.length)pb.append(el("span","pc",String(plus.length)));
+  pb.title=own?"You wrote this note":(plus.length?plus.map(v=>v.name||"Someone").join(", ")+" agreed":"Agree with this note");
+  pb.setAttribute("aria-pressed",mine);pb.setAttribute("aria-label",(mine?"Remove your +1":"+1, agree with this note")+(plus.length?" ("+plus.length+")":""));
+  pb.disabled=own;
+  pb.onclick=()=>{
+    const name=myName();if(!mine&&!name){flash("Add your name in \"Who's writing?\" first so the band knows who agreed.");$("myname").focus();return}
+    const next=mine?plus.filter(v=>v.id!==myId):plus.concat([{id:myId,name:name}]);
+    store.update(n.id,{plus:next}).catch(()=>flash("Couldn't save your +1."));
+  };
+  row.append(pb);
   const rb=el("button","ghost",n.reply?"Edit reply":"Reply");rb.type="button";
   rb.onclick=()=>{openReply=openReply===n.id?null:n.id;replyJustOpened=!!openReply;renderLists()};row.append(rb);
   if(n.author&&n.author===myId){
@@ -487,12 +507,14 @@ function render(){renderTabs();renderFilters();renderTracks();renderHead();rende
 const AUDIO_URLS = {};
 // Songs with no mix yet: the player is hidden for these. Remove a song from this list once its MP3 is uploaded.
 const NO_AUDIO = ["ride-away"];
-const AUDIO_DIR = (typeof SUPABASE_URL!=="undefined"&&SUPABASE_URL) ? SUPABASE_URL.replace(/\/+$/,"")+"/storage/v1/object/public/audio/" : "audio/";
+// Looks in the Supabase "audio" bucket first, then in an "audio" folder next to this page on GitHub.
+const AUDIO_DIRS = [(typeof SUPABASE_URL!=="undefined"&&SUPABASE_URL) ? SUPABASE_URL.replace(/\/+$/,"")+"/storage/v1/object/public/audio/" : null, "audio/"].filter(Boolean);
+let audioTry = 0;
 const audio = new Audio(); audio.preload = "metadata";
 let audioFor = null, pendingSeek = null;
 const PLAY='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 4.5v15l13-7.5z"/></svg>';
 const PAUSE='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>';
-function audioSrc(k){return AUDIO_URLS[k]||(AUDIO_DIR+k+".mp3")}
+function audioSrc(k,i){return AUDIO_URLS[k]||(AUDIO_DIRS[i||0]+k+".mp3")}
 function audioReady(){return audioFor===view&&isFinite(audio.duration)&&audio.duration>0}
 function loadAudio(k){
   $("player").hidden=NO_AUDIO.includes(k);
@@ -501,7 +523,7 @@ function loadAudio(k){
   if(NO_AUDIO.includes(k)){audio.removeAttribute("src");audio.load();syncPlayer();return}
   const p=$("player");p.classList.remove("ready");p.classList.add("loading");
   $("pl-msg").textContent="Loading mix…";
-  audio.src=audioSrc(k);audio.load();
+  audioTry=0;audio.src=audioSrc(k,0);audio.load();
   syncPlayer();
 }
 function syncPlayer(){
@@ -526,6 +548,8 @@ audio.addEventListener("loadedmetadata",()=>{
   syncPlayer();
 });
 audio.addEventListener("error",()=>{
+  if(!audio.getAttribute("src"))return;
+  if(!AUDIO_URLS[audioFor]&&audioTry<AUDIO_DIRS.length-1){audioTry++;audio.src=audioSrc(audioFor,audioTry);audio.load();return}
   const p=$("player");p.classList.remove("loading","ready");pendingSeek=null;
   $("pl-msg").textContent="No mix uploaded for this song yet.";syncPlayer();
 });
